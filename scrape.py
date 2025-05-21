@@ -1,5 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
+from tqdm import tqdm
 
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36",
@@ -19,19 +20,26 @@ base_url = 'https://www.federalregister.gov/agencies'
 try:
     response = requests.get(base_url, headers=headers)
     response.raise_for_status()
-except Exception:
+except Exception as e:
+    print(f"[ERROR] Failed to fetch base URL: {e}")
     exit(1)
 
 soup = BeautifulSoup(response.text, 'html.parser')
 
 agency_list_section = soup.find('ul', id='agency-list')
 if not agency_list_section:
+    print("[ERROR] Could not find the agency list section.")
     exit(1)
 
 agency_links = agency_list_section.find_all('a', href=True)
+print(f"[INFO] Found {len(agency_links)} agency links.")
 
-with open('agency_websites.txt', 'w', encoding='utf-8') as f:
-    for link in agency_links:
+if not agency_links:
+    print("[ERROR] No agency links found. Exiting.")
+    exit(1)
+
+with open('target_urls.txt', 'w', encoding='utf-8') as f:
+    for link in tqdm(agency_links, desc="Scraping agencies"):
         agency_url = link['href'].strip()
 
         if not agency_url.startswith('https://www.federalregister.gov/agencies/'):
@@ -58,6 +66,5 @@ with open('agency_websites.txt', 'w', encoding='utf-8') as f:
                 official_website = website_tag['href'].strip()
                 f.write(f"{official_website}\n")
 
-        except Exception:
-            pass
-
+        except Exception as e:
+            print(f"[WARNING] Failed to process {agency_url}: {e}")
